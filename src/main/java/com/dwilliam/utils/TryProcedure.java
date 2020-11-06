@@ -1,11 +1,17 @@
 package com.dwilliam.utils;
 
 @FunctionalInterface
-public interface TryProcedure {
+public interface TryProcedure extends TrySupplier<Void> {
 
-    void run();
+    @Override
+    default Void get() throws Throwable {
+        run();
+        return null;
+    }
 
-    default TryProcedure andThen(TryProcedure after){
+    void run() throws Throwable;
+
+    default TryProcedure then(TryProcedure after){
         return () -> {
             this.run();
             after.run();
