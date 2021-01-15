@@ -1,189 +1,238 @@
 package com.dwilliam.utils;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TryTest {
 
+    static final Exception exception = new IllegalAccessException();
+    
+    Try<Integer> success;
+    Try<Integer> failure;
+    Try<Integer> nullTry;
+
+    @BeforeEach
+    void beforeEach() {
+        success = Try.value(0);
+        failure = Try.newTry(() -> { throw exception; });
+        nullTry = Try.value(null);
+    }
+
     @Test
     void isFailure() {
-        assertFalse(Try.of(() -> 0).isFailure());
-        assertTrue(Try.of(() -> { throw new Exception(); }).isFailure());
+        assertFalse(success.isFailure());
+        assertTrue(failure.isFailure());
+
+        assertFalse(nullTry.isFailure());
     }
 
     @Test
     void isSuccess() {
-        assertTrue(Try.of(() -> 0).isSuccess());
-        assertFalse(Try.of(() -> { throw new Exception(); }).isSuccess());
+        assertTrue(success.isSuccess());
+        assertFalse(failure.isSuccess());
+
+        assertTrue(nullTry.isSuccess());
     }
 
     @Test
     void get() throws Throwable {
-        assertEquals(0, Try.of(() -> 0).get());
-        assertThrows(Exception.class, () -> Try.of(() -> { throw new Exception(); }).get());
+        assertEquals(0, success.get());
+        assertThrows(Exception.class, () -> failure.get());
 
-        assertNull(Try.of(() -> null).get());
+        assertNull(nullTry.get());
+    }
 
-        boolean aBool = true;
+    @SuppressWarnings("ThrowableNotThrown")
+    @Test
+    void getThrowable() {
+        assertThrows(UnsupportedOperationException.class, () -> success.getThrowable());
+        assertEquals(exception, failure.getThrowable());
 
-        Try.of(() -> {
-            if(aBool) return 42;
-            else throw new Exception();
-        });
+        assertThrows(UnsupportedOperationException.class, () -> nullTry.getThrowable());
     }
 
     @Test
     void throwThrowable() {
-        assertThrows(UnsupportedOperationException.class, () -> Try.of(() -> 0).throwThrowable());
-        assertThrows(IllegalArgumentException.class, () -> Try.of(() -> { throw new IllegalArgumentException(); }).throwThrowable());
+        assertThrows(UnsupportedOperationException.class, () -> success.throwThrowable());
+        assertThrows(exception.getClass(), () -> failure.throwThrowable());
 
-        assertThrows(UnsupportedOperationException.class, () -> Try.of(() -> null).throwThrowable());
+        assertThrows(UnsupportedOperationException.class, () -> nullTry.throwThrowable());
     }
 
     @Test
     void getOrElse() {
-        assertEquals(0, Try.of(() -> 0).getOrElse(1));
-        assertEquals(0, Try.of(() -> { throw new Exception(); }).getOrElse(0));
+        assertEquals(0, success.getOrElse(1));
+        assertEquals(0, failure.getOrElse(0));
 
-        assertNull(Try.of(() -> null).getOrElse(0));
+        assertNull(nullTry.getOrElse(0));
     }
 
     @Test
     void asOptional() {
-        assertEquals(Optional.of(0), Try.of(() -> 0).asOptional());
-        assertEquals(Optional.empty(), Try.of(() -> { throw new Exception(); }).asOptional());
+        assertEquals(Optional.of(0), success.asOptional());
+        assertEquals(Optional.empty(), failure.asOptional());
 
-        assertEquals(Optional.empty(), Try.of(() -> null).asOptional());
+        assertEquals(Optional.empty(), nullTry.asOptional());
+    }
+
+    @Test
+    void throwableAsOptional() {
+        assertEquals(Optional.empty(), success.throwableAsOptional());
+        assertEquals(Optional.of(exception), failure.throwableAsOptional());
+
+        assertEquals(Optional.empty(), nullTry.throwableAsOptional());
     }
 
     @Test
     void orElse() {
-        assertEquals(Try.of(() -> 0), Try.of(() -> 0).orElse(Try.of(() -> 1)));
-        assertEquals(Try.of(() -> 0), Try.of(() -> { throw new Exception(); }).orElse(Try.of(() -> 0)));
+        assertEquals(success, success.orElse(Try.of(() -> 1)));
+        assertEquals(success, failure.orElse(success));
 
-        assertEquals(Try.of(() -> null), Try.of(() -> null).orElse(Try.of(() -> 1)));
+        assertEquals(nullTry, nullTry.orElse(Try.of(() -> 1)));
     }
 
     @Test
     void map() {
-        assertEquals(Optional.of(1), Try.of(() -> 0).map(x -> x+1));
-        assertEquals(Optional.empty(), Try.of(() -> { throw new Exception(); }).map(Object::toString));
+        assertEquals(Try.value(1), success.map((Function<Integer, Integer>) x -> 1));
+        assertEquals(Try.value(1), success.map((TryFunction<Integer, Integer>) x -> 1));
+        assertEquals(failure, failure.map((Function<Integer, Integer>) x -> 1));
+        assertEquals(failure, failure.map((TryFunction<Integer, Integer>) x -> 1));
 
-        assertEquals(Optional.empty(), Try.of(() -> null).map(Object::toString));
+        assertEquals(Try.value(1), nullTry.map((Function<Integer, Integer>) x -> 1));
+        assertEquals(Try.value(1), nullTry.map((TryFunction<Integer, Integer>) x -> 1));
     }
 
     @Test
     void mapThrowable() {
-        assertEquals(Optional.empty(), Try.of(() -> 0).mapThrowable(Objects::isNull));
-        assertEquals(Optional.of(0), Try.of(() -> { throw new Exception(); }).mapThrowable(e -> 0));
+        assertEquals(success, success.mapThrowable((Function<Throwable, Throwable>) t -> t));
+        assertEquals(success, success.mapThrowable((TryFunction<Throwable, Throwable>) t -> t));
+        Exception exception = new Exception();
+        assertEquals(exception, failure.mapThrowable((Function<Throwable, Throwable>) t -> exception).getThrowable());
+        assertEquals(exception, failure.mapThrowable((TryFunction<Throwable, Throwable>) t -> exception).getThrowable());
 
-        assertEquals(Optional.empty(), Try.of(() -> null).mapThrowable(Objects::isNull));
+        assertEquals(nullTry, nullTry.mapThrowable((Function<Throwable, Throwable>) t -> t));
+        assertEquals(nullTry, nullTry.mapThrowable((TryFunction<Throwable, Throwable>) t -> t));
+    }
+
+    @SuppressWarnings("AssertEqualsBetweenInconvertibleTypes")
+    @Test
+    void flatMap() {
+        assertEquals(Try.value(""), Try.value(success).flatMap((Function<Try<Integer>, Try<String>>) x -> Try.value("")));
+        assertEquals(Try.value(""), Try.value(success).flatMap((TryFunction<Try<Integer>, Try<String>>) x -> Try.value("")));
+
+        Try<Try<Integer>> failure = Try.newTry(() -> { throw exception; });
+        assertEquals(failure, failure.flatMap((Function<Try<Integer>, Try<String>>) x -> Try.value("")));
+        assertEquals(failure, failure.flatMap((TryFunction<Try<Integer>, Try<String>>) x -> Try.value("")));
     }
 
     @Test
-    void forEach() {
-        assertThrows(RuntimeException.class, () -> Try.of(() -> 0).forEach(i -> { throw new RuntimeException(); }));
-        assertDoesNotThrow(() -> Try.of(() -> { throw new Exception(); }).forEach(i -> { throw new RuntimeException(); }));
+    void consume() {
+        assertThrows(RuntimeException.class, () -> success.consume(i -> { throw new RuntimeException(); }));
+        assertDoesNotThrow(() -> failure.consume(i -> { throw new RuntimeException(); }));
 
-        assertThrows(RuntimeException.class, () -> Try.of(() -> null).forEach(i -> { throw new RuntimeException(); }));
+        assertThrows(RuntimeException.class, () -> nullTry.consume(i -> { throw new RuntimeException(); }));
     }
 
     @Test
     void trap() {
-        assertDoesNotThrow(() -> Try.of(() -> 0).trap(i -> { throw new RuntimeException(); }));
-        assertThrows(RuntimeException.class, () -> Try.of(() -> { throw new Exception(); }).trap(e -> { throw new RuntimeException(); }));
+        assertDoesNotThrow(() -> success.trap(i -> { throw new RuntimeException(); }));
+        assertThrows(RuntimeException.class, () -> failure.trap(e -> { throw new RuntimeException(); }));
 
-        assertDoesNotThrow(() -> Try.of(() -> null).trap(e -> { throw new RuntimeException(); }));
+        assertDoesNotThrow(() -> nullTry.trap(e -> { throw new RuntimeException(); }));
     }
 
     @Test
     void contains() {
-        assertTrue(Try.of(() -> 0).contains(x -> x==0));
-        assertFalse(Try.of(() -> 0).contains(x -> x==1));
-        assertFalse(Try.of(() -> { throw new Exception(); }).contains(Objects::nonNull));
+        assertTrue(success.contains(x -> x==0));
+        assertFalse(success.contains(x -> x==1));
+        assertFalse(failure.contains(Objects::nonNull));
 
-        assertTrue(Try.of(() -> null).contains(Objects::isNull));
-        assertFalse(Try.of(() -> null).contains(Objects::nonNull));
+        assertTrue(nullTry.contains(Objects::isNull));
+        assertFalse(nullTry.contains(Objects::nonNull));
     }
 
     @Test
     void containsThrowable() {
-        assertFalse(Try.of(() -> 0).containsThrowable(Objects::nonNull));
-        assertTrue(Try.of(() -> { throw new Exception(); }).containsThrowable(Objects::nonNull));
-        assertFalse(Try.of(() -> { throw new Exception(); }).containsThrowable(Objects::isNull));
+        assertFalse(success.containsThrowable(Objects::nonNull));
+        assertTrue(failure.containsThrowable(Objects::nonNull));
+        assertFalse(failure.containsThrowable(Objects::isNull));
 
-        assertFalse(Try.of(() -> null).containsThrowable(Objects::isNull));
+        assertFalse(nullTry.containsThrowable(Objects::isNull));
     }
 
     @Test
     void filter() {
-        assertEquals(Try.of(() -> 0), Try.of(() -> 0).filter(x -> x==0));
-        assertThrows(NoSuchElementException.class, () -> Try.of(() -> 1).filter(x -> x == 0).get());
-        assertThrows(Exception.class, () -> Try.of(() -> { throw new Exception(); }).filter(x -> x.equals(new Object())).get());
+        assertEquals(success, success.filter(x -> x == 0));
+        assertThrows(NoSuchElementException.class, () -> success.filter(x -> x == 1).get());
+        assertThrows(exception.getClass(), () -> failure.filter(x -> x == 0).get());
 
-        assertEquals(Try.of(() -> null), Try.of(() -> null).filter(Objects::isNull));
-        assertThrows(NoSuchElementException.class, () -> Try.of(() -> null).filter(Objects::nonNull).get());
+        assertEquals(nullTry, nullTry.filter(Objects::isNull));
+        assertThrows(NoSuchElementException.class, () -> nullTry.filter(Objects::nonNull).get());
     }
 
     @Test
     void filterThrowable() {
-        Exception e = new IndexOutOfBoundsException();
-        assertEquals(Try.of(() -> 0), Try.of(() -> 0).filterThrowable(o -> o.equals(e)));
-        assertThrows(IndexOutOfBoundsException.class, () -> Try.of(() -> { throw e; }).filterThrowable(o -> o.equals(e)).get());
-        assertThrows(NoSuchElementException.class, () -> Try.of(() -> { throw new Exception(); }).filterThrowable(o -> o.equals(e)).get());
+        assertDoesNotThrow(() -> success.filterThrowable(o -> o.equals(exception)).get());
+        assertThrows(exception.getClass(), () -> failure.filterThrowable(o -> o.equals(exception)).get());
+        assertThrows(NoSuchElementException.class, () -> failure.filterThrowable(o -> !o.equals(exception)).get());
 
-        assertEquals(Try.of(() -> null), Try.of(() -> null).filter(Objects::isNull));
-        assertThrows(NoSuchElementException.class, () -> Try.of(() -> null).filter(Objects::nonNull).get());
+        assertEquals(nullTry, nullTry.filter(Objects::isNull));
+        assertThrows(NoSuchElementException.class, () -> nullTry.filter(Objects::nonNull).get());
     }
 
     @Test
     void then() {
+        assertEquals(Try.value(1), success.thenValue(1));
+        assertEquals(Try.value(1), success.then((Supplier<Integer>) () -> 1));
+        assertEquals(Try.value(1), success.then((TrySupplier<Integer>) () -> 1));
+
+        assertEquals(failure, failure.thenValue(1));
+        assertEquals(failure, failure.then((Supplier<Integer>) () -> 1));
+        assertEquals(failure, failure.then((TrySupplier<Integer>) () -> 1));
     }
 
     @Test
-    void testThen() {
-    }
+    void thenThrowable() {
+        Exception exception = new Exception();
 
-    @Test
-    void testThen1() {
-    }
-
-    @Test
-    void testThen2() {
-    }
-
-    @Test
-    void testThen3() {
-    }
-
-    @Test
-    void testThen4() {
+        assertEquals(success, success.thenThrowable(exception));
+        assertEquals(success, success.thenThrowable((Supplier<Throwable>) () -> exception));
+        assertEquals(success, success.thenThrowable((TrySupplier<Throwable>) () -> exception));
+        assertEquals(Try.newTry(() -> { throw exception; }), failure.thenThrowable(exception));
+        assertEquals(Try.newTry(() -> { throw exception; }), failure.thenThrowable((TrySupplier<Throwable>) () -> exception));
+        assertEquals(Try.newTry(() -> { throw exception; }), failure.thenThrowable((TrySupplier<Throwable>) () -> exception));
     }
 
     @Test
     void recover() {
-    }
+        assertEquals(success, success.recoverValue(1));
+        assertEquals(success, success.recover((Supplier<Integer>) () -> 1));
+        assertEquals(success, success.recover((TrySupplier<Integer>) () -> 1));
+        assertEquals(success, success.recover((Function<Throwable, Integer>) t -> 1));
+        assertEquals(success, success.recover((TryFunction<Throwable, Integer>) t -> 1));
 
-    @Test
-    void testRecover() {
+        assertEquals(Try.value(1), failure.recoverValue(1));
+        assertEquals(Try.value(1), failure.recover((Supplier<Integer>) () -> 1));
+        assertEquals(Try.value(1), failure.recover((TrySupplier<Integer>) () -> 1));
+        assertEquals(Try.value(1), failure.recover((Function<Throwable, Integer>) t -> 1));
+        assertEquals(Try.value(1), failure.recover((TryFunction<Throwable, Integer>) t -> 1));
     }
 
     @Test
     void failed() {
-        assertThrows(UnsupportedOperationException.class, () -> Try.of(() -> 0).failed().get());
-    }
+        assertThrows(UnsupportedOperationException.class, () -> success.failed().get());
+        assertDoesNotThrow(() -> failure.failed().get());
 
-    @Test
-    void of() {
-    }
-
-    @Test
-    void testOf() {
+        assertThrows(UnsupportedOperationException.class, () -> nullTry.failed().get());
     }
 
 }

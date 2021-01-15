@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class Success<T> implements Try<T> {
 
@@ -31,6 +32,11 @@ public class Success<T> implements Try<T> {
     }
 
     @Override
+    public Throwable getThrowable() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void throwThrowable() {
         throw new UnsupportedOperationException();
     }
@@ -46,23 +52,56 @@ public class Success<T> implements Try<T> {
     }
 
     @Override
-    public Try<T> orElse(Try<T> elseTry) {
-        return this;
-    }
-
-    @Override
-    public <U> Optional<U> map(Function<? super T, ? extends U> mapper) {
-        return asOptional().map(mapper);
-    }
-
-    @Override
-    public <U> Optional<U> mapThrowable(Function<? super Throwable, ? extends U> mapper) {
-        Objects.requireNonNull(mapper);
+    public Optional<Throwable> throwableAsOptional() {
         return Optional.empty();
     }
 
     @Override
-    public void forEach(Consumer<T> consumer) {
+    public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
+        Objects.requireNonNull(mapper);
+        return Try.newTry(() -> mapper.apply(this.value));
+    }
+
+    @Override
+    public <U> Try<U> map(TryFunction<? super T, ? extends U> mapper) {
+        Objects.requireNonNull(mapper);
+        return Try.newTry(() -> mapper.apply(this.value));
+    }
+
+    @Override
+    public Try<T> mapThrowable(Function<? super Throwable, ? extends Throwable> mapper) {
+        Objects.requireNonNull(mapper);
+        return this;
+    }
+
+    @Override
+    public Try<T> mapThrowable(TryFunction<? super Throwable, ? extends Throwable> mapper) {
+        Objects.requireNonNull(mapper);
+        return this;
+    }
+
+    @Override
+    public <U> Try<U> flatMap(Function<? super T, ? extends Try<U>> mapper) {
+        Objects.requireNonNull(mapper);
+        try {
+            return mapper.apply(this.value);
+        } catch (Throwable throwable) {
+            return new Failure<>(throwable);
+        }
+    }
+
+    @Override
+    public <U> Try<U> flatMap(TryFunction<? super T, ? extends Try<U>> mapper) {
+        Objects.requireNonNull(mapper);
+        try {
+            return mapper.apply(this.value);
+        } catch (Throwable throwable) {
+            return new Failure<>(throwable);
+        }
+    }
+
+    @Override
+    public void consume(Consumer<T> consumer) {
         Objects.requireNonNull(consumer).accept(this.value);
     }
 
@@ -94,29 +133,46 @@ public class Success<T> implements Try<T> {
     }
 
     @Override
-    public <U> Try<U> then(TrySupplier<? extends U> supplier) {
+    public <U> Try<U> thenValue(U value) {
+        return new Success<>(value);
+    }
+
+    @Override
+    public <U> Try<U> then(Supplier<U> supplier) {
         return Try.of(supplier);
     }
 
-    public <U> Try<U> then(Function<? super T, ? extends U> function) {
-        Objects.requireNonNull(function);
-        try {
-            return new Success<>(function.apply(this.value));
-        }
-        catch (Exception exception) {
-            return new Failure<>(exception);
-        }
+    @Override
+    public <U> Try<U> then(TrySupplier<U> supplier) {
+        return Try.newTry(supplier);
     }
 
-    public <U> Try<U> then(Function<? super T, ? extends U> success, Function<? super Throwable, ? extends U> failure) {
-        Objects.requireNonNull(success);
-        Objects.requireNonNull(failure);
-        try {
-            return new Success<>(success.apply(this.value));
-        }
-        catch (Exception exception) {
-            return new Failure<>(exception);
-        }
+    @Override
+    public Try<T> thenThrowable(Throwable throwable) {
+        return this;
+    }
+
+    @Override
+    public Try<T> thenThrowable(Supplier<Throwable> supplier) {
+        Objects.requireNonNull(supplier);
+        return this;
+    }
+
+    @Override
+    public Try<T> thenThrowable(TrySupplier<Throwable> supplier) {
+        Objects.requireNonNull(supplier);
+        return this;
+    }
+
+    @Override
+    public Try<T> recoverValue(T value) {
+        return this;
+    }
+
+    @Override
+    public Try<T> recover(Supplier<? extends T> supplier) {
+        Objects.requireNonNull(supplier);
+        return this;
     }
 
     @Override
@@ -126,14 +182,20 @@ public class Success<T> implements Try<T> {
     }
 
     @Override
-    public Try<T> recover(Function<? super Throwable, ? extends T> function) {
-        Objects.requireNonNull(function);
+    public Try<T> recover(Function<? super Throwable, ? extends T> mapper) {
+        Objects.requireNonNull(mapper);
+        return this;
+    }
+
+    @Override
+    public Try<T> recover(TryFunction<? super Throwable, ? extends T> mapper) {
+        Objects.requireNonNull(mapper);
         return this;
     }
 
     @Override
     public Try<Throwable> failed() {
-        return new Failure<>(Try.TRY_NOT_FAILURE);
+        return new Failure<>(new UnsupportedOperationException());
     }
 
     @Override
