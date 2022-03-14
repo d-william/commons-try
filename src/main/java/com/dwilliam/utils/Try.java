@@ -1,5 +1,6 @@
 package com.dwilliam.utils;
 
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -7,7 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public interface Try<T> {
+public sealed interface Try<T> permits Failure, Success {
 
     /**
      * Returns {@code true} if this {@code Try} is a {@code Failure}.
@@ -28,9 +29,17 @@ public interface Try<T> {
      * throws the caught {@code Throwable} in case of {@code Failure}.
      *
      * @return the value if this {@code Try} is a {@code Success}
-     * @throws Throwable if this {@code Try} is a {@code Failure}
+     * @throws NoSuchElementException if this {@code Try} is a {@code Failure}
      */
-    T get() throws Throwable;
+    T get();
+
+    /**
+     * Alias for {@link #get()}
+     *
+     * @return the value if this {@code Try} is a {@code Success}
+     * @throws NoSuchElementException if this {@code Try} is a {@code Failure}
+     */
+    T value();
 
     /**
      * Returns the throwable from this {@code Failure} or
@@ -49,8 +58,7 @@ public interface Try<T> {
      * @throws Throwable if this {@code Try} is a {@code Failure}
      */
     default void throwThrowable() throws Throwable {
-        if (isSuccess()) throw new UnsupportedOperationException("Not a Failure");
-        else throw getThrowable();
+        throw getThrowable();
     }
 
     /**

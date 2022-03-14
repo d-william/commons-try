@@ -44,7 +44,7 @@ class TryTest {
     }
 
     @Test
-    void get() throws Throwable {
+    void get() {
         assertEquals(0, success.get());
         assertThrows(Exception.class, () -> failure.get());
 
@@ -54,18 +54,18 @@ class TryTest {
     @SuppressWarnings("ThrowableNotThrown")
     @Test
     void getThrowable() {
-        assertThrows(UnsupportedOperationException.class, () -> success.getThrowable());
+        assertThrows(NoSuchElementException.class, () -> success.getThrowable());
         assertEquals(exception, failure.getThrowable());
 
-        assertThrows(UnsupportedOperationException.class, () -> nullTry.getThrowable());
+        assertThrows(NoSuchElementException.class, () -> nullTry.getThrowable());
     }
 
     @Test
     void throwThrowable() {
-        assertThrows(UnsupportedOperationException.class, () -> success.throwThrowable());
+        assertThrows(NoSuchElementException.class, () -> success.throwThrowable());
         assertThrows(exception.getClass(), () -> failure.throwThrowable());
 
-        assertThrows(UnsupportedOperationException.class, () -> nullTry.throwThrowable());
+        assertThrows(NoSuchElementException.class, () -> nullTry.throwThrowable());
     }
 
     @Test
@@ -173,7 +173,8 @@ class TryTest {
     void filter() {
         assertEquals(success, success.filter(x -> x == 0));
         assertThrows(NoSuchElementException.class, () -> success.filter(x -> x == 1).get());
-        assertThrows(exception.getClass(), () -> failure.filter(x -> x == 0).get());
+        assertThrows(NoSuchElementException.class, () -> failure.filter(x -> x == 0).get());
+        assertEquals(exception, failure.filter(x -> x == 0).getThrowable());
 
         assertEquals(nullTry, nullTry.filter(Objects::isNull));
         assertThrows(NoSuchElementException.class, () -> nullTry.filter(Objects::nonNull).get());
@@ -182,8 +183,9 @@ class TryTest {
     @Test
     void filterThrowable() {
         assertDoesNotThrow(() -> success.filterThrowable(o -> o.equals(exception)).get());
-        assertThrows(exception.getClass(), () -> failure.filterThrowable(o -> o.equals(exception)).get());
+        assertThrows(NoSuchElementException.class, () -> failure.filterThrowable(o -> o.equals(exception)).get());
         assertThrows(NoSuchElementException.class, () -> failure.filterThrowable(o -> !o.equals(exception)).get());
+        assertEquals(exception, failure.filterThrowable(o -> o.equals(exception)).getThrowable());
 
         assertEquals(nullTry, nullTry.filter(Objects::isNull));
         assertThrows(NoSuchElementException.class, () -> nullTry.filter(Objects::nonNull).get());
@@ -229,10 +231,10 @@ class TryTest {
 
     @Test
     void failed() {
-        assertThrows(UnsupportedOperationException.class, () -> success.failed().get());
+        assertThrows(NoSuchElementException.class, () -> success.failed().get());
         assertDoesNotThrow(() -> failure.failed().get());
 
-        assertThrows(UnsupportedOperationException.class, () -> nullTry.failed().get());
+        assertThrows(NoSuchElementException.class, () -> nullTry.failed().get());
     }
 
 }

@@ -8,13 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class Failure<T> implements Try<T> {
-
-    final private Throwable throwable;
-
-    Failure(Throwable throwable) {
-        this.throwable = throwable;
-    }
+public record Failure<T>(Throwable throwable) implements Try<T> {
 
     @Override
     public boolean isFailure() {
@@ -27,18 +21,18 @@ public class Failure<T> implements Try<T> {
     }
 
     @Override
-    public T get() throws Throwable {
-        throw this.throwable;
+    public T get() {
+        throw new NoSuchElementException(this.throwable);
+    }
+
+    @Override
+    public T value() {
+        throw new NoSuchElementException(this.throwable);
     }
 
     @Override
     public Throwable getThrowable() {
         return this.throwable;
-    }
-
-    @Override
-    public void throwThrowable() throws Throwable {
-        throw this.throwable;
     }
 
     @Override
@@ -73,8 +67,7 @@ public class Failure<T> implements Try<T> {
         Objects.requireNonNull(mapper);
         try {
             return new Failure<>(mapper.apply(this.throwable));
-        }
-        catch (Throwable throwable) {
+        } catch (Throwable throwable) {
             return new Failure<>(throwable);
         }
     }
@@ -84,8 +77,7 @@ public class Failure<T> implements Try<T> {
         Objects.requireNonNull(mapper);
         try {
             return new Failure<>(mapper.apply(this.throwable));
-        }
-        catch (Throwable throwable) {
+        } catch (Throwable throwable) {
             return new Failure<>(throwable);
         }
     }

@@ -9,7 +9,7 @@ Try<Integer> code = Try.of(() -> {
 });
 
 // if aBool == true
-int i = code.get; // 42
+int i = code.get(); // 42
 Optional<Integer> opt = code.asOptional(); // Optional(42)
 
 // if aBool == false

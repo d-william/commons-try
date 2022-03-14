@@ -8,13 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public class Success<T> implements Try<T> {
-
-    final private T value;
-
-    public Success(T t) {
-        this.value = t;
-    }
+public record Success<T>(T value) implements Try<T> {
 
     @Override
     public boolean isFailure() {
@@ -32,13 +26,13 @@ public class Success<T> implements Try<T> {
     }
 
     @Override
-    public Throwable getThrowable() {
-        throw new UnsupportedOperationException();
+    public T value() {
+        return this.value;
     }
 
     @Override
-    public void throwThrowable() {
-        throw new UnsupportedOperationException();
+    public Throwable getThrowable() {
+        throw new NoSuchElementException("Not a Failure");
     }
 
     @Override
